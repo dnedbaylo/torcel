@@ -16,6 +16,6 @@ setup(
     author_email='dmitry.nedbaylo@gmail.com',
     url='http://github.com/dnedbaylo/torcel',
     license="http://www.apache.org/licenses/LICENSE-2.0",
-    packages=['torcel'],
-    requires=['tornado', 'celery'],
+    packages=['torcel', 'torcel.test'],
+    requires=['tornado', 'celery', 'netifaces'],
 )
