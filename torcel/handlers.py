@@ -13,7 +13,6 @@ from tornado import gen
 from tornado.ioloop import IOLoop
 from tornado.options import options
 
-_celery_webhook_url = None
 logger = logging.getLogger("torcel.handlers")
 
 
