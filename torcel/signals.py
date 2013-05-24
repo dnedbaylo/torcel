@@ -17,11 +17,11 @@ def tornado_prerun(task_id, kwargs, **_kwargs):
 
 
 @task_postrun.connect
-def tornado_postrun(task_id, retval=None, **kwargs):
+def tornado_postrun(task_id, retval=None, state=None, **kwargs):
     if task_id not in local.callback_url:
         return
     callback_url = local.callback_url.pop(task_id)
-    d = HttpDispatch(task_kwargs={"success": True, "task_id": task_id, "retval": pickle.dumps(retval)},
+    d = HttpDispatch(task_kwargs={"state": state, "task_id": task_id, "retval": pickle.dumps(retval)},
                      url=callback_url, method="POST")
     try:
         d.dispatch()

@@ -25,17 +25,22 @@ class DispatchResultHandler (RequestHandler):
     def post(self):
         task_id = self.get_argument('task_id', None)
         if task_id is None:
-            raise HTTPError(400)
+            raise HTTPError(400, "task_id is missing")
         if task_id not in self._table.callbacks:
-            raise HTTPError(400)
+            raise HTTPError(400, "invalid task_id argument")
         retval = self.get_argument('retval', None)
-        if retval is not None:
+        if retval is None:
+            raise HTTPError(400, "retval argument is missing")
+        else:
             try:
                 retval = pickle.loads(urllib.unquote(retval))
             except Exception:
                 logger.exception("failed to parse retval argument")
                 raise HTTPError(400)
-        tornado.ioloop.IOLoop.current().add_callback(self._table.callbacks[task_id], retval)
+        state = self.get_argument('state', None)
+        if state is None:
+            raise HTTPError(400, "state argument is missing")
+        tornado.ioloop.IOLoop.current().add_callback(self._table.callbacks[task_id], state, retval)
         del self._table.callbacks[task_id]
         self.set_header('Content-Type', 'application/json')
         self.finish(anyjson.dumps({"status": "success", "retval": None}))
@@ -50,7 +55,7 @@ class ResultCallback (object):
         self.callback = callback
         DispatchResultHandler.add_callback(self)
 
-    def __call__(self, result):
+    def __call__(self, state, result):
         self.callback(result)
 
 
