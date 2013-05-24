@@ -1,14 +1,24 @@
-from celery.signals import task_postrun
-from celery.task.http import HttpDispatch
 import anyjson
+import threading
+from celery.signals import task_postrun, task_prerun
+from celery.task.http import HttpDispatch
+
+local = threading.local()
+local.callback_url = {}
+
+
+@task_prerun.connect
+def tornado_prerun(task_id, kwargs, **_kwargs):
+    callback_url = kwargs.pop('_torcel_callback_url', None)
+    if callback_url is not None:
+        local.callback_url[task_id] = callback_url
+
 
 @task_postrun.connect
-def tornado_notify(args=None, kwargs=None, task_id=None, task=None, retval=None, state=None, signal=None, sender=None):
-    if '_torcel' not in kwargs:
+def tornado_postrun(task_id, retval=None, **kwargs):
+    if task_id not in local.callback_url:
         return
-    callback_url = kwargs.get('_torcel_callback_url', None)
-    if callback_url is None:
-        return
+    callback_url = local.callback_url.pop(task_id)
     d = HttpDispatch(task_kwargs={"success": True, "task_id": task_id, "retval": anyjson.dumps(retval)},
                      url=callback_url, method="POST")
     d.dispatch()

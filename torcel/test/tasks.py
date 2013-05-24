@@ -9,7 +9,7 @@ task_logger = get_task_logger(__name__)
 
 
 @celery.task
-def task1(**kwargs):
+def task1():
     task_logger.info("id: %s", current_task.request.id)
     s = randint(1, 5)
     sleep(s)

@@ -68,7 +68,7 @@ class CeleryMixin (object):
 
     @property
     def task_kwargs(self):
-        return {"_torcel": True, "_torcel_callback_url": self.get_celery_webhook_url()}
+        return {"_torcel_callback_url": self.get_celery_webhook_url()}
 
 
 urlspec = [
