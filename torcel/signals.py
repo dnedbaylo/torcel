@@ -1,10 +1,12 @@
 import anyjson
+import logging
 import threading
 from celery.signals import task_postrun, task_prerun
 from celery.task.http import HttpDispatch
 
 local = threading.local()
 local.callback_url = {}
+logger = logging.getLogger("torcel.signals")
 
 
 @task_prerun.connect
@@ -21,4 +23,7 @@ def tornado_postrun(task_id, retval=None, **kwargs):
     callback_url = local.callback_url.pop(task_id)
     d = HttpDispatch(task_kwargs={"success": True, "task_id": task_id, "retval": anyjson.dumps(retval)},
                      url=callback_url, method="POST")
-    d.dispatch()
+    try:
+        d.dispatch()
+    except Exception:
+        logger.exception("failed to dispatch tornado callback: %s", callback_url)

@@ -1,5 +1,6 @@
 import anyjson
 import functools
+import logging
 import netifaces
 import threading
 import urllib
@@ -8,6 +9,7 @@ from tornado.web import RequestHandler, URLSpec, HTTPError
 from tornado.options import options
 
 _celery_webhook_url = None
+logger = logging.getLogger("torcel.handlers")
 
 
 class DispatchResultHandler (RequestHandler):
@@ -26,7 +28,11 @@ class DispatchResultHandler (RequestHandler):
             raise HTTPError(400)
         retval = self.get_argument('retval', None)
         if retval is not None:
-            retval = anyjson.loads(urllib.unquote(retval))
+            try:
+                retval = anyjson.loads(urllib.unquote(retval))
+            except Exception:
+                logger.exception("failed to parse retval argument")
+                raise HTTPError(400)
         self._table.callbacks[task_id](retval)
         del self._table.callbacks[task_id]
         self.set_header('Content-Type', 'application/json')
