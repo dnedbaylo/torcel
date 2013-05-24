@@ -20,3 +20,10 @@ def task1():
 def task_fails():
     task_logger.info("id: %s", current_task.request.id)
     raise Exception("task always fails")
+
+
+@celery.task
+def task_timeout():
+    task_logger.info("id: %s", current_task.request.id)
+    sleep(100)
+    return {"success": True}

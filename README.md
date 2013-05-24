@@ -12,7 +12,7 @@ Usage
 Calling Celery tasks from Tornado RequestHandler:
 
     from tornado import gen, web
-    from torcel import AsyncTask, TaskFailed
+    from torcel import AsyncTask, TaskFailure, TaskTimeout
     from . import tasks
 
     class AsyncHandler(web.RequestHandler):
@@ -21,9 +21,11 @@ Calling Celery tasks from Tornado RequestHandler:
         @gen.coroutine
         def get(self):
             try:
-                result = yield AsyncTask(tasks.echo, args=['Hello world!'])
-            except TaskFailed, e:
+                result = yield AsyncTask(tasks.echo, args=['Hello world!'], timeout=30)
+            except TaskFailure, e:
                 self.finish("task failed with exception: %s" % repr(e.error))
+            except TaskTimeout:
+                self.finish("task execution timed out")
             else:
                 self.finish("task succeeded with result: %s" % repr(result))
 

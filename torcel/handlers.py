@@ -5,11 +5,11 @@ import netifaces
 import pickle
 import threading
 import urllib
-import tornado.ioloop
 from celery.result import AsyncResult
 from celery import current_app
 from tornado.web import RequestHandler, URLSpec, HTTPError
 from tornado import gen
+from tornado.ioloop import IOLoop
 from tornado.options import options
 
 _celery_webhook_url = None
@@ -42,18 +42,26 @@ class DispatchResultHandler (RequestHandler):
         state = self.get_argument('state', None)
         if state is None:
             raise HTTPError(400, "state argument is missing")
-        tornado.ioloop.IOLoop.current().add_callback(self._table.callbacks[task_id], TaskResult(state, retval))
+        IOLoop.instance().add_callback(self._table.callbacks[task_id], TaskResult(state, retval))
         del self._table.callbacks[task_id]
         self.set_header('Content-Type', 'application/json')
         self.finish(anyjson.dumps({"status": "success", "retval": None}))
 
 
-class TaskFailed (Exception):
+class TaskException (Exception):
+    pass
+
+
+class TaskFailure (TaskException):
 
     def __init__(self, task_result):
-        super(TaskFailed, self).__init__()
+        super(TaskFailure, self).__init__()
         self.error = task_result.error
         self.task_result = task_result
+
+
+class TaskTimeout (TaskException):
+    pass
 
 
 class TaskResult (object):
@@ -71,7 +79,7 @@ class TaskResult (object):
 class AsyncTask (gen.Task):
 
     # noinspection PyMissingConstructor
-    def __init__(self, task, args=None, kwargs=None, **options):
+    def __init__(self, task, args=None, kwargs=None, timeout=None, **options):
         assert "callback" not in options
         kwargs = kwargs_insert_torcel_hooks(kwargs)
         try:
@@ -80,11 +88,14 @@ class AsyncTask (gen.Task):
             self.func = functools.partial(current_app.send_task, task)
         self.args = [args, kwargs]
         self.kwargs = options
+        self.timeout = timeout
 
     def get_result(self):
         result = self.runner.pop_result(self.key)
-        if result.state != 'SUCCESS':
-            raise TaskFailed(result)
+        if result.state == 'TIMEOUT':
+            raise TaskTimeout()
+        elif result.state != 'SUCCESS':
+            raise TaskFailure(result)
         return result.result
 
     def start(self, runner):
@@ -93,22 +104,38 @@ class AsyncTask (gen.Task):
         runner.register_callback(self.key)
         callback = runner.result_callback(self.key)
         task_id = self.func(*self.args, **self.kwargs)
-        ResultCallback(task_id, callback)
+        ResultCallback(task_id, callback, self.timeout)
 
 ApplyAsyncTask = AsyncTask  # just an alias
 
 
 class ResultCallback (object):
 
-    def __init__(self, task_id, callback):
+    def __init__(self, task_id, callback, timeout=None):
         if isinstance(task_id, AsyncResult):
             task_id = task_id.id
         self.task_id = task_id
         self.callback = callback
+        self.timeout = timeout
+        self.finished = False
         DispatchResultHandler.add_callback(self)
+        if self.timeout is not None:
+            self.timeout_handler = IOLoop.instance().add_timeout(
+                IOLoop.instance().time() + self.timeout, self.on_timeout)
 
     def __call__(self, task_result):
+        if self.finished:
+            return
         self.callback(task_result)
+        self.finished = True
+        if self.timeout is not None:
+            IOLoop.instance().remove_timeout(self.timeout_handler)
+
+    def on_timeout(self):
+        # TODO: revoke the task from broker?
+        # TODO: remove record from DispatchResultHandler?
+        self.finished = True
+        self.callback(TaskResult('TIMEOUT', None))
 
 
 def get_celery_webhook_url():
