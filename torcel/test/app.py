@@ -4,6 +4,7 @@ import tornado.ioloop
 from tornado import gen, httpserver
 from tornado.options import options, define
 from tornado.web import Application, RequestHandler, URLSpec, asynchronous
+from torcel.handlers import TaskFailed, AsyncTask
 import tasks
 
 torcel.producer.setup_producer()
@@ -37,8 +38,10 @@ class Example3RequestHandler(RequestHandler, torcel.handlers.CeleryHandlerMixin)
         self.finish("result: %s" % result)
 
 
-class Example4RequestHandler(RequestHandler, torcel.handlers.CeleryHandlerMixin):
-
+class Example4RequestHandler(RequestHandler):
+    """
+    Uses torcel custom TaskProducer
+    """
     @asynchronous
     @gen.coroutine
     def get(self):
@@ -46,13 +49,33 @@ class Example4RequestHandler(RequestHandler, torcel.handlers.CeleryHandlerMixin)
         self.finish("result: %s" % result)
 
 
-class ExampleFailRequestHandler(RequestHandler, torcel.handlers.CeleryHandlerMixin):
+class ExampleFail1RequestHandler(RequestHandler):
+    """
+    Uses AsyncTask yield point
+    """
+    @asynchronous
+    @gen.coroutine
+    def get(self):
+        try:
+            result = yield AsyncTask(tasks.task_fails)
+        except TaskFailed, e:
+            self.finish("task failed: state: %s, exception: %s" % (e.task_result.state, repr(e.error)))
+        else:
+            self.finish("result: %s" % result)
 
+
+class ExampleFail2RequestHandler(RequestHandler):
+    """
+    Uses torcel custom TaskProducer
+    """
     @asynchronous
     @gen.coroutine
     def get(self):
         result = yield gen.Task(tasks.task_fails.apply_async)
-        self.finish("result: %s" % result)
+        if result.error:
+            self.finish("task failed: state: %s, exception: %s" % (result.state, repr(result.error)))
+        else:
+            self.finish("result: %s" % result)
 
 
 urlspec = [
@@ -60,7 +83,8 @@ urlspec = [
     URLSpec('/example2', Example2RequestHandler),
     URLSpec('/example3', Example3RequestHandler),
     URLSpec('/example4', Example4RequestHandler),
-    URLSpec('/examplefail', ExampleFailRequestHandler),
+    URLSpec('/examplefail1', ExampleFail1RequestHandler),
+    URLSpec('/examplefail2', ExampleFail2RequestHandler),
 ]
 urlspec.extend(torcel.handlers.urlspec)
 

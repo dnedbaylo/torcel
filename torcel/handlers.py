@@ -7,7 +7,9 @@ import threading
 import urllib
 import tornado.ioloop
 from celery.result import AsyncResult
+from celery import current_app
 from tornado.web import RequestHandler, URLSpec, HTTPError
+from tornado import gen
 from tornado.options import options
 
 _celery_webhook_url = None
@@ -40,10 +42,60 @@ class DispatchResultHandler (RequestHandler):
         state = self.get_argument('state', None)
         if state is None:
             raise HTTPError(400, "state argument is missing")
-        tornado.ioloop.IOLoop.current().add_callback(self._table.callbacks[task_id], state, retval)
+        tornado.ioloop.IOLoop.current().add_callback(self._table.callbacks[task_id], TaskResult(state, retval))
         del self._table.callbacks[task_id]
         self.set_header('Content-Type', 'application/json')
         self.finish(anyjson.dumps({"status": "success", "retval": None}))
+
+
+class TaskFailed (Exception):
+
+    def __init__(self, task_result):
+        super(TaskFailed, self).__init__()
+        self.error = task_result.error
+        self.task_result = task_result
+
+
+class TaskResult (object):
+
+    def __init__(self, state, result):
+        self.state = state
+        if isinstance(result, Exception):
+            self.error = result
+            self.result = None
+        else:
+            self.result = result
+            self.error = None
+
+
+class AsyncTask (gen.Task):
+
+    # noinspection PyMissingConstructor
+    def __init__(self, task, task_args=None, task_kwargs=None, **options):
+        assert "callback" not in options
+        task_kwargs = kwargs_insert_torcel_hooks(task_kwargs)
+        try:
+            self.func = task.apply_async
+        except KeyError:
+            self.func = functools.partial(current_app.send_task, task)
+        self.args = [task_args, task_kwargs]
+        self.kwargs = options
+
+    def get_result(self):
+        result = self.runner.pop_result(self.key)
+        if result.state != 'SUCCESS':
+            raise TaskFailed(result)
+        return result
+
+    def start(self, runner):
+        self.runner = runner
+        self.key = object()
+        runner.register_callback(self.key)
+        callback = runner.result_callback(self.key)
+        task_id = self.func(*self.args, **self.kwargs)
+        ResultCallback(task_id, callback)
+
+ApplyAsyncTask = AsyncTask  # just an alias
 
 
 class ResultCallback (object):
@@ -55,8 +107,8 @@ class ResultCallback (object):
         self.callback = callback
         DispatchResultHandler.add_callback(self)
 
-    def __call__(self, state, result):
-        self.callback(result)
+    def __call__(self, task_result):
+        self.callback(task_result)
 
 
 def get_celery_webhook_url():
