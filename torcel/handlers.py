@@ -71,21 +71,21 @@ class TaskResult (object):
 class AsyncTask (gen.Task):
 
     # noinspection PyMissingConstructor
-    def __init__(self, task, task_args=None, task_kwargs=None, **options):
+    def __init__(self, task, args=None, kwargs=None, **options):
         assert "callback" not in options
-        task_kwargs = kwargs_insert_torcel_hooks(task_kwargs)
+        kwargs = kwargs_insert_torcel_hooks(kwargs)
         try:
             self.func = task.apply_async
         except KeyError:
             self.func = functools.partial(current_app.send_task, task)
-        self.args = [task_args, task_kwargs]
+        self.args = [args, kwargs]
         self.kwargs = options
 
     def get_result(self):
         result = self.runner.pop_result(self.key)
         if result.state != 'SUCCESS':
             raise TaskFailed(result)
-        return result
+        return result.result
 
     def start(self, runner):
         self.runner = runner

@@ -49,6 +49,21 @@ class Example4RequestHandler(RequestHandler):
         self.finish("result: %s" % result)
 
 
+class Example5RequestHandler(RequestHandler):
+    """
+    Uses AsyncTask yield point
+    """
+    @asynchronous
+    @gen.coroutine
+    def get(self):
+        try:
+            result = yield AsyncTask(tasks.task1)
+        except TaskFailed, e:
+            self.finish("task failed: state: %s, exception: %s" % (e.task_result.state, repr(e.error)))
+        else:
+            self.finish("result: %s" % result)
+
+
 class ExampleFail1RequestHandler(RequestHandler):
     """
     Uses AsyncTask yield point
@@ -83,6 +98,7 @@ urlspec = [
     URLSpec('/example2', Example2RequestHandler),
     URLSpec('/example3', Example3RequestHandler),
     URLSpec('/example4', Example4RequestHandler),
+    URLSpec('/example5', Example5RequestHandler),
     URLSpec('/examplefail1', ExampleFail1RequestHandler),
     URLSpec('/examplefail2', ExampleFail2RequestHandler),
 ]
