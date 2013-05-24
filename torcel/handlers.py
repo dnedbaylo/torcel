@@ -24,12 +24,18 @@ class DispatchResultHandler (RequestHandler):
     def add_callback(cls, callback):
         cls._table.callbacks[callback.task_id] = callback
 
+    def finish_success(self):
+        self.set_header('Content-Type', 'application/json')
+        self.finish(anyjson.dumps({"status": "success", "retval": None}))
+
     def post(self):
         task_id = self.get_argument('task_id', None)
         if task_id is None:
             raise HTTPError(400, "task_id is missing")
         if task_id not in self._table.callbacks:
-            raise HTTPError(400, "invalid task_id argument")
+            # ignore tasks not found in table. most likely they were removed due to timeout
+            self.finish_success()
+            return
         retval = self.get_argument('retval', None)
         if retval is None:
             raise HTTPError(400, "retval argument is missing")
@@ -44,8 +50,7 @@ class DispatchResultHandler (RequestHandler):
             raise HTTPError(400, "state argument is missing")
         IOLoop.instance().add_callback(self._table.callbacks[task_id], TaskResult(state, retval))
         del self._table.callbacks[task_id]
-        self.set_header('Content-Type', 'application/json')
-        self.finish(anyjson.dumps({"status": "success", "retval": None}))
+        self.finish_success()
 
 
 class TaskException (Exception):
