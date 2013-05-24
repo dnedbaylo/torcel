@@ -12,7 +12,7 @@ torcel.producer.setup_producer()
 class Example1RequestHandler(RequestHandler, torcel.handlers.CeleryHandlerMixin):
 
     @asynchronous
-    @gen.engine
+    @gen.coroutine
     def get(self):
         task_id = self.apply_async(tasks.task1).id
         result = yield gen.Task(self.get_task_result(task_id))
@@ -22,7 +22,7 @@ class Example1RequestHandler(RequestHandler, torcel.handlers.CeleryHandlerMixin)
 class Example2RequestHandler(RequestHandler, torcel.handlers.CeleryHandlerMixin):
 
     @asynchronous
-    @gen.engine
+    @gen.coroutine
     def get(self):
         result = yield gen.Task(self.get_task_result, self.apply_async(tasks.task1).id)
         self.finish("result: %s" % result)
@@ -31,7 +31,7 @@ class Example2RequestHandler(RequestHandler, torcel.handlers.CeleryHandlerMixin)
 class Example3RequestHandler(RequestHandler, torcel.handlers.CeleryHandlerMixin):
 
     @asynchronous
-    @gen.engine
+    @gen.coroutine
     def get(self):
         result = yield gen.Task(self.get_task_result, self.apply_async(tasks.task1))
         self.finish("result: %s" % result)
@@ -40,7 +40,7 @@ class Example3RequestHandler(RequestHandler, torcel.handlers.CeleryHandlerMixin)
 class Example4RequestHandler(RequestHandler, torcel.handlers.CeleryHandlerMixin):
 
     @asynchronous
-    @gen.engine
+    @gen.coroutine
     def get(self):
         result = yield gen.Task(tasks.task1.apply_async)
         self.finish("result: %s" % result)
@@ -49,7 +49,7 @@ class Example4RequestHandler(RequestHandler, torcel.handlers.CeleryHandlerMixin)
 class ExampleFailRequestHandler(RequestHandler, torcel.handlers.CeleryHandlerMixin):
 
     @asynchronous
-    @gen.engine
+    @gen.coroutine
     def get(self):
         result = yield gen.Task(tasks.task_fails.apply_async)
         self.finish("result: %s" % result)
