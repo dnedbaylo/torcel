@@ -1,5 +1,5 @@
-import anyjson
 import logging
+import pickle
 import threading
 from celery.signals import task_postrun, task_prerun
 from celery.task.http import HttpDispatch
@@ -21,7 +21,7 @@ def tornado_postrun(task_id, retval=None, **kwargs):
     if task_id not in local.callback_url:
         return
     callback_url = local.callback_url.pop(task_id)
-    d = HttpDispatch(task_kwargs={"success": True, "task_id": task_id, "retval": anyjson.dumps(retval)},
+    d = HttpDispatch(task_kwargs={"success": True, "task_id": task_id, "retval": pickle.dumps(retval)},
                      url=callback_url, method="POST")
     try:
         d.dispatch()

@@ -14,3 +14,9 @@ def task1():
     s = randint(1, 5)
     sleep(s)
     return {"success": True, "wait": s}
+
+
+@celery.task
+def task_fails():
+    task_logger.info("id: %s", current_task.request.id)
+    raise Exception("task always fails")

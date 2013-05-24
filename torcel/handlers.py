@@ -2,6 +2,7 @@ import anyjson
 import functools
 import logging
 import netifaces
+import pickle
 import threading
 import urllib
 from celery.result import AsyncResult
@@ -29,7 +30,7 @@ class DispatchResultHandler (RequestHandler):
         retval = self.get_argument('retval', None)
         if retval is not None:
             try:
-                retval = anyjson.loads(urllib.unquote(retval))
+                retval = pickle.loads(urllib.unquote(retval))
             except Exception:
                 logger.exception("failed to parse retval argument")
                 raise HTTPError(400)

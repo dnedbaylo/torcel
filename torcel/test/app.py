@@ -46,11 +46,21 @@ class Example4RequestHandler(RequestHandler, torcel.handlers.CeleryHandlerMixin)
         self.finish("result: %s" % result)
 
 
+class ExampleFailRequestHandler(RequestHandler, torcel.handlers.CeleryHandlerMixin):
+
+    @asynchronous
+    @gen.engine
+    def get(self):
+        result = yield gen.Task(tasks.task_fails.apply_async)
+        self.finish("result: %s" % result)
+
+
 urlspec = [
     URLSpec('/example1', Example1RequestHandler),
     URLSpec('/example2', Example2RequestHandler),
     URLSpec('/example3', Example3RequestHandler),
     URLSpec('/example4', Example4RequestHandler),
+    URLSpec('/examplefail', ExampleFailRequestHandler),
 ]
 urlspec.extend(torcel.handlers.urlspec)
 
