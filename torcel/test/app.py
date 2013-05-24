@@ -1,23 +1,56 @@
 import torcel.handlers
+import torcel.producer
 import tornado.ioloop
 from tornado import gen, httpserver
 from tornado.options import options, define
 from tornado.web import Application, RequestHandler, URLSpec, asynchronous
 import tasks
 
+torcel.producer.setup_producer()
 
-class Task1RequestHandler (RequestHandler, torcel.handlers.CeleryHandlerMixin):
+
+class Example1RequestHandler(RequestHandler, torcel.handlers.CeleryHandlerMixin):
 
     @asynchronous
     @gen.engine
     def get(self):
-        task_id = tasks.task1.apply_async(kwargs=self.task_kwargs).id
-        result = yield gen.Task(self.get_result(task_id))
+        task_id = self.apply_async(tasks.task1).id
+        result = yield gen.Task(self.get_task_result(task_id))
+        self.finish("result: %s" % result)
+
+
+class Example2RequestHandler(RequestHandler, torcel.handlers.CeleryHandlerMixin):
+
+    @asynchronous
+    @gen.engine
+    def get(self):
+        result = yield gen.Task(self.get_task_result, self.apply_async(tasks.task1).id)
+        self.finish("result: %s" % result)
+
+
+class Example3RequestHandler(RequestHandler, torcel.handlers.CeleryHandlerMixin):
+
+    @asynchronous
+    @gen.engine
+    def get(self):
+        result = yield gen.Task(self.get_task_result, self.apply_async(tasks.task1))
+        self.finish("result: %s" % result)
+
+
+class Example4RequestHandler(RequestHandler, torcel.handlers.CeleryHandlerMixin):
+
+    @asynchronous
+    @gen.engine
+    def get(self):
+        result = yield gen.Task(tasks.task1.apply_async)
         self.finish("result: %s" % result)
 
 
 urlspec = [
-    URLSpec('/task1', Task1RequestHandler),
+    URLSpec('/example1', Example1RequestHandler),
+    URLSpec('/example2', Example2RequestHandler),
+    URLSpec('/example3', Example3RequestHandler),
+    URLSpec('/example4', Example4RequestHandler),
 ]
 urlspec.extend(torcel.handlers.urlspec)
 
