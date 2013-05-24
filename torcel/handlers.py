@@ -41,7 +41,7 @@ class ResultCallback (object):
         self.callback(result)
 
 
-class CeleryMixin (object):
+class CeleryHandlerMixin (object):
     _celery_webhook_url = None
 
     @classmethod

@@ -6,7 +6,7 @@ from tornado.web import Application, RequestHandler, URLSpec, asynchronous
 import tasks
 
 
-class Task1RequestHandler (RequestHandler, torcel.handlers.CeleryMixin):
+class Task1RequestHandler (RequestHandler, torcel.handlers.CeleryHandlerMixin):
 
     @asynchronous
     @gen.engine
