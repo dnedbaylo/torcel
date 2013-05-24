@@ -5,6 +5,7 @@ import netifaces
 import pickle
 import threading
 import urllib
+import warnings
 from celery.result import AsyncResult
 from celery import current_app
 from tornado.web import RequestHandler, URLSpec, HTTPError
@@ -146,7 +147,6 @@ def _default_callback_url():
     try:
         iface = (x for x in netifaces.interfaces() if x != 'lo').next()
     except StopIteration:
-        import warnings
         warnings.warn("cannot find network interface other than `lo`, using 127.0.0.1 as instance ip address")
         url = '127.0.0.1'
     else:
@@ -162,6 +162,7 @@ class _CallbackUrl (object):
     def __call__(self):
         if self.callback_url is None:
             self.callback_url = self.callback_url_func()
+            warnings.warn("using %s as callback url for celery result dispatching" % self.callback_url)
         return self.callback_url
 
 get_callback_url = _CallbackUrl()

@@ -2,7 +2,6 @@ import torcel.handlers
 import torcel.producer
 import tornado.ioloop
 from tornado import gen, httpserver
-from tornado.options import options, define
 from tornado.web import Application, RequestHandler, URLSpec, asynchronous
 from torcel import TaskFailure, TaskTimeout, AsyncTask
 import tasks
@@ -66,7 +65,8 @@ def get_app():
 
 
 if __name__ == '__main__':
-    define("port", default=8080, type=int, help="run on the given port")
+    from tornado.options import options, define
+    define("port", default=8080, type=bool, help="run on the given port")
     http_server = httpserver.HTTPServer(get_app())
     http_server.listen(options.port)
     tornado.ioloop.IOLoop.instance().start()
