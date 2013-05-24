@@ -4,7 +4,7 @@ import tornado.ioloop
 from tornado import gen, httpserver
 from tornado.options import options, define
 from tornado.web import Application, RequestHandler, URLSpec, asynchronous
-from torcel.handlers import TaskFailed, AsyncTask
+from torcel import TaskFailed, AsyncTask
 import tasks
 
 torcel.producer.setup_producer()
