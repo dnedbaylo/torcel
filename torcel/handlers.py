@@ -5,6 +5,7 @@ import netifaces
 import pickle
 import threading
 import urllib
+import tornado.ioloop
 from celery.result import AsyncResult
 from tornado.web import RequestHandler, URLSpec, HTTPError
 from tornado.options import options
@@ -34,7 +35,7 @@ class DispatchResultHandler (RequestHandler):
             except Exception:
                 logger.exception("failed to parse retval argument")
                 raise HTTPError(400)
-        self._table.callbacks[task_id](retval)
+        tornado.ioloop.IOLoop.current().add_callback(self._table.callbacks[task_id], retval)
         del self._table.callbacks[task_id]
         self.set_header('Content-Type', 'application/json')
         self.finish(anyjson.dumps({"status": "success", "retval": None}))
