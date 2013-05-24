@@ -1,9 +1,10 @@
+import torcel.signals
 from celery import Celery, current_task
 from celery.utils.log import get_task_logger
 from random import randint
 from time import sleep
-from torcel import signals
 
+torcel.signals.setup()
 celery = Celery('tasks', broker='amqp://guest@localhost//')
 task_logger = get_task_logger(__name__)
 

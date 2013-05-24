@@ -138,43 +138,39 @@ class ResultCallback (object):
         self.callback(TaskResult('TIMEOUT', None))
 
 
-def get_celery_webhook_url():
+def _default_callback_url():
     """
     Should return IP address of current machine.
     Overwrite it if needed
     """
-    global _celery_webhook_url
-    if _celery_webhook_url is not None:
-        return _celery_webhook_url
     try:
         iface = (x for x in netifaces.interfaces() if x != 'lo').next()
     except StopIteration:
         import warnings
         warnings.warn("cannot find network interface other than `lo`, using 127.0.0.1 as instance ip address")
-        _celery_webhook_url = '127.0.0.1'
+        url = '127.0.0.1'
     else:
-        _celery_webhook_url = netifaces.ifaddresses(iface)[2][0]['addr']
-    _celery_webhook_url = "http://%s:%s/celery-dispatch-result" % (_celery_webhook_url, options.port)
-    return _celery_webhook_url
+        url = netifaces.ifaddresses(iface)[2][0]['addr']
+    url = "http://%s:%s/celery-dispatch-result" % (url, options.port)
+    return url
+
+
+class _CallbackUrl (object):
+    callback_url_func = staticmethod(_default_callback_url)
+    callback_url = None
+
+    def __call__(self):
+        if self.callback_url is None:
+            self.callback_url = self.callback_url_func()
+        return self.callback_url
+
+get_callback_url = _CallbackUrl()
 
 
 def kwargs_insert_torcel_hooks(kwargs):
     kwargs = kwargs or {}
-    kwargs["_torcel_callback_url"] = get_celery_webhook_url()
+    kwargs["_torcel_callback_url"] = get_callback_url()
     return kwargs
-
-
-class CeleryHandlerMixin (object):
-
-    def get_task_result(self, task_id, callback=None):
-        if callback is None:
-            return functools.partial(ResultCallback, task_id)
-        else:
-            return ResultCallback(task_id, callback)
-
-    def apply_async(self, task, args=None, kwargs=None, **options):
-        kwargs = kwargs_insert_torcel_hooks(kwargs)
-        return task.apply_async(args, kwargs, **options)
 
 
 urlspec = [

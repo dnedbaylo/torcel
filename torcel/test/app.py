@@ -7,49 +7,8 @@ from tornado.web import Application, RequestHandler, URLSpec, asynchronous
 from torcel import TaskFailure, TaskTimeout, AsyncTask
 import tasks
 
-torcel.producer.setup_producer()
 
-
-class Example1RequestHandler(RequestHandler, torcel.handlers.CeleryHandlerMixin):
-
-    @asynchronous
-    @gen.coroutine
-    def get(self):
-        task_id = self.apply_async(tasks.task1).id
-        result = yield gen.Task(self.get_task_result(task_id))
-        self.finish("result: %s" % result)
-
-
-class Example2RequestHandler(RequestHandler, torcel.handlers.CeleryHandlerMixin):
-
-    @asynchronous
-    @gen.coroutine
-    def get(self):
-        result = yield gen.Task(self.get_task_result, self.apply_async(tasks.task1).id)
-        self.finish("result: %s" % result)
-
-
-class Example3RequestHandler(RequestHandler, torcel.handlers.CeleryHandlerMixin):
-
-    @asynchronous
-    @gen.coroutine
-    def get(self):
-        result = yield gen.Task(self.get_task_result, self.apply_async(tasks.task1))
-        self.finish("result: %s" % result)
-
-
-class Example4RequestHandler(RequestHandler):
-    """
-    Uses torcel custom TaskProducer
-    """
-    @asynchronous
-    @gen.coroutine
-    def get(self):
-        result = yield gen.Task(tasks.task1.apply_async)
-        self.finish("result: %s" % result)
-
-
-class Example5RequestHandler(RequestHandler):
+class Task1RequestHandler(RequestHandler):
     """
     Uses AsyncTask yield point
     """
@@ -64,7 +23,7 @@ class Example5RequestHandler(RequestHandler):
             self.finish("result: %s" % result)
 
 
-class ExampleFail1RequestHandler(RequestHandler):
+class TaskFailRequestHandler(RequestHandler):
     """
     Uses AsyncTask yield point
     """
@@ -79,21 +38,7 @@ class ExampleFail1RequestHandler(RequestHandler):
             self.finish("result: %s" % result)
 
 
-class ExampleFail2RequestHandler(RequestHandler):
-    """
-    Uses torcel custom TaskProducer
-    """
-    @asynchronous
-    @gen.coroutine
-    def get(self):
-        result = yield gen.Task(tasks.task_fails.apply_async)
-        if result.error:
-            self.finish("task failed: state: %s, exception: %s" % (result.state, repr(result.error)))
-        else:
-            self.finish("result: %s" % result)
-
-
-class ExampleTimeout1RequestHandler(RequestHandler):
+class TaskTimeoutRequestHandler(RequestHandler):
     """
     Uses AsyncTask yield point
     """
@@ -109,14 +54,9 @@ class ExampleTimeout1RequestHandler(RequestHandler):
 
 
 urlspec = [
-    URLSpec('/example1', Example1RequestHandler),
-    URLSpec('/example2', Example2RequestHandler),
-    URLSpec('/example3', Example3RequestHandler),
-    URLSpec('/example4', Example4RequestHandler),
-    URLSpec('/example5', Example5RequestHandler),
-    URLSpec('/examplefail1', ExampleFail1RequestHandler),
-    URLSpec('/examplefail2', ExampleFail2RequestHandler),
-    URLSpec('/exampletimeout1', ExampleTimeout1RequestHandler),
+    URLSpec('/task1', Task1RequestHandler),
+    URLSpec('/task_fail', TaskFailRequestHandler),
+    URLSpec('/task_timeout', TaskTimeoutRequestHandler),
 ]
 urlspec.extend(torcel.handlers.urlspec)
 
